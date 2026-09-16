@@ -7,6 +7,14 @@ manuscript/*.out
 manuscript/*.bbl
 manuscript/*.blg
 manuscript/build/
+paper/ieee-manuscript/*.aux
+paper/ieee-manuscript/*.log
+paper/ieee-manuscript/*.out
+paper/ieee-manuscript/*.blg
+paper/ieee-manuscript/*.synctex.gz
+# The extracted IEEE template in paper/IEEE-conference-template-062824/ is
+# committed; the source archive is not, to avoid duplicating ~1 MB.
+paper/template-ieee.rar
 .venv/
 data/generated/
 results/checkpoints/
