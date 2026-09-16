@@ -73,9 +73,49 @@ Two distance thresholds are reported separately throughout and are never
 merged: a **safety violation** at 0.72 m and a **physical collision** at
 0.56 m (the robot diameter).
 
+## Author and funding metadata
+
+Both files carry the same author block and first-page funding footnote:
+four authors, Xiaoqin Fu marked as corresponding author (`\textsuperscript{*}`
+on the name), and the two Henan grants in a `\thanks`. `main-en.tex` and
+`main-zh.tex` both need `\IEEEoverridecommandlockouts` for `\thanks` to work
+inside `\author`.
+
+The Chinese version currently prints author names in their romanized form —
+the Chinese characters were not available. Affiliations are in Chinese.
+
+### Why the English author block is a `tabular`
+
+`main-en.tex` builds the author block by hand instead of using IEEEtran's
+`\IEEEauthorblockN` / `\and`. This is deliberate — do not "simplify" it back.
+
+In conference mode IEEEtran defines
+
+```latex
+\renewcommand{\and}[1][\hfill]{\end{@IEEEauthorhalign}#1\begin{@IEEEauthorhalign}}
+```
+
+so `\and` does **not** create a tabular column. It ends one `halign` and starts
+another, joining the blocks with stretchy `\hfill`. Each row therefore
+distributes its leftover space on its own, and the block centres land at
+different x offsets from row to row whenever the two rows have different block
+widths. Measured on this paper, the two rows were 181 px apart at 200 dpi —
+plainly visible, because the Liuzhou affiliation (530 px) is much wider than
+the Zhongyuan one (417 px).
+
+IEEE's own template shows the same effect, just less severely (64 px), because
+its placeholder affiliations are all the same width.
+
+Writing the block as a real `tabular` makes the columns genuinely shared across
+rows. After the change both columns measure constant to within 2 px across both
+rows. `\authname` / `\authaff` wrap IEEEtran's own author styles so the
+appearance still matches the class defaults.
+
 ## Before submission
 
-- Replace the placeholder author names and affiliations in both files.
+- Supply the Chinese characters for the four author names in `main-zh.tex`,
+  and confirm the Chinese rendering of the Zhongyuan University of Technology
+  school name and of the first Henan grant (both were inferred).
 - Verify the RVO-style baseline is described as a finite-lattice
   implementation, not a formally verified RVO library (Section IV-B and the
   Limitations discussion both say so — keep that wording).

@@ -1,4 +1,6 @@
 \documentclass[conference]{IEEEtran}
+% Needed so that \thanks can be used in \author for the funding footnote.
+\IEEEoverridecommandlockouts
 % English submission version. Compile with XeLaTeX (see build.sh).
 % IEEE requires Times; under XeLaTeX, IEEEtran's Times fallback must be
 % replaced explicitly or the body would silently render in Latin Modern.
@@ -18,25 +20,43 @@
 
 \graphicspath{{../../figures/generated/}}
 
-\newcommand{\sysname}{DG-Nav}
+% IEEEtran's conference \and does not create a tabular column: it ends one
+% halign and starts another, joining the blocks with stretchy \hfill. Each row
+% then distributes its leftover space independently, so the author blocks land
+% at different x offsets from row to row. Building the block as a real tabular
+% instead makes the columns genuinely shared across rows, which keeps every
+% author centred under the one above it.
+\makeatletter
+\newcommand{\authname}[1]{{\@IEEEauthorblockNstyle #1}}
+\newcommand{\authaff}[1]{{\@IEEEauthorblockAstyle #1}}
+\makeatother
 
 \begin{document}
 
 \title{Dynamic Graph Neural Policies for Multi-Robot Cooperative
 Navigation: Edge Features, Safety Filtering, and Density Limits}
 
-\author{
-\IEEEauthorblockN{First A. Author}
-\IEEEauthorblockA{\textit{Department of Automation} \\
-\textit{Institution Name}\\
-City, Country \\
-author@example.edu}
-\and
-\IEEEauthorblockN{Second B. Author}
-\IEEEauthorblockA{\textit{Department of Automation} \\
-\textit{Institution Name}\\
-City, Country \\
-author2@example.edu}
+\author{%
+\begin{tabular}{@{}c@{\hspace{1.6cm}}c@{}}
+\authname{Xuelin Hu} & \authname{Xiaoqin Fu\textsuperscript{*}} \\[0.9ex]
+\authaff{\textit{Liuzhou Railway Vocational Technical College}} &
+\authaff{\textit{Liuzhou Railway Vocational Technical College}} \\
+\authaff{Liuzhou 545000, China} & \authaff{Liuzhou 545000, China} \\
+\authaff{huxuelinai@gmail.com; huxl@ltzy.edu.cn} &
+\authaff{xiaoqin.fu@qq.com; fuxiaoqin@ltzy.edu.cn} \\[2.2ex]
+\authname{Youjing Fu} & \authname{Jingchao Wang} \\[0.9ex]
+\authaff{\textit{College of Earth and Environmental Sciences}} &
+\authaff{\textit{School of Computer Science}} \\
+\authaff{\textit{Lanzhou University}} &
+\authaff{\textit{Zhongyuan University of Technology}} \\
+\authaff{Lanzhou 730000, China} & \authaff{Zhengzhou 450007, China} \\
+\authaff{fuyj2025@lzu.edu.cn} & \authaff{static@zut.edu.cn}
+\end{tabular}%
+\thanks{This work was supported by the Science and Technology Research
+Project of Henan Province (grant no.~262102211055) and the Key Scientific
+Research Project of Colleges and Universities in Henan Province (grant
+no.~27AQ520018).}
+\thanks{\textsuperscript{*}Corresponding author: Xiaoqin Fu.}
 }
 
 \maketitle

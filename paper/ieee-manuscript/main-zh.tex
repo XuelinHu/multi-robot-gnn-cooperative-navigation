@@ -1,4 +1,6 @@
 \documentclass[conference]{IEEEtran}
+% 供 \author 中使用 \thanks 输出资助脚注。
+\IEEEoverridecommandlockouts
 % 中文核对版。与英文投稿版 main-en.tex 同构（相同章节、图表、页数），
 % 便于逐段对照。使用 XeLaTeX 编译（见 build.sh）。
 \usepackage{xeCJK}
@@ -26,11 +28,27 @@
 边特征、安全过滤与密度边界}
 
 \author{
-\IEEEauthorblockN{作\quad 者}
-\IEEEauthorblockA{\textit{单位名称} \\
-\textit{学院/系}\\
-城市，国家 \\
-author@example.edu}
+\IEEEauthorblockN{Xuelin Hu}
+\IEEEauthorblockA{\textit{柳州铁道职业技术学院} \\
+柳州 545000，中国 \\
+huxuelinai@gmail.com；huxl@ltzy.edu.cn}
+\and
+\IEEEauthorblockN{Xiaoqin Fu\textsuperscript{*}}
+\IEEEauthorblockA{\textit{柳州铁道职业技术学院} \\
+柳州 545000，中国 \\
+xiaoqin.fu@qq.com；fuxiaoqin@ltzy.edu.cn}
+\and
+\IEEEauthorblockN{Youjing Fu}
+\IEEEauthorblockA{\textit{兰州大学资源环境学院} \\
+兰州 730000，中国 \\
+fuyj2025@lzu.edu.cn}
+\and
+\IEEEauthorblockN{Jingchao Wang}
+\IEEEauthorblockA{\textit{中原工学院计算机学院} \\
+郑州 450007，中国 \\
+static@zut.edu.cn}
+\thanks{本工作受河南省科技攻关项目（262102211055）与河南省高等学校重点科研项目（27AQ520018）资助。}
+\thanks{\textsuperscript{*}通信作者：Xiaoqin Fu。}
 }
 
 \maketitle
