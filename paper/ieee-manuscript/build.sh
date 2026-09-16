@@ -11,6 +11,12 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
+# Pin the embedded PDF creation date so repeated builds are byte-identical.
+# Without this every build rewrites the PDFs with a new timestamp and the
+# working tree looks dirty even though nothing actually changed.
+export SOURCE_DATE_EPOCH=1700000000
+export FORCE_SOURCE_DATE=1
+
 if ! command -v xelatex >/dev/null 2>&1; then
   echo "xelatex not found. Install TeX Live (or MiKTeX) and retry." >&2
   exit 1
