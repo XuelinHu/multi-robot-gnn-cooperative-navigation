@@ -358,7 +358,7 @@ size 128.
 \label{sec:results}
 
 \subsection{Main Comparison}
-Table~\ref{tab:main} summarizes the 600-episode main comparison. A* attains
+Table~\ref{tab:main} and Fig.~\ref{fig:baselines} summarize the 600-episode main comparison. A* attains
 a task success rate of 1.000 at each team size. RVO-style achieves
 0.975--1.000 success and the shortest paths, while its mean control time
 increases from 7.8~ms at 5 robots to 87.4~ms at 20 robots, approximately an
@@ -382,7 +382,7 @@ transitions into a $<0.72$~m safety violation. Sep: minimum inter-robot
 separation (m). $T$: mean per-step control time (ms).}
 \label{tab:main}
 \centering
-\scriptsize
+\footnotesize
 \setlength{\tabcolsep}{3pt}
 \begin{tabular}{lcccccccccccc}
 \toprule
@@ -491,7 +491,7 @@ ranges from about 0.8 to 1.5~ms across the tested settings, and physical collisi
 eliminated by global connectivity.
 
 \subsection{Multi-Scale Stress Test}
-Table~\ref{tab:multiscale} reports the 1800-episode safety-filtered test
+Figs.~\ref{fig:scaling} and~\ref{fig:mapstraj} show scaling trends, map-specific success, and trajectories. Table~\ref{tab:multiscale} reports the 1800-episode safety-filtered test
 using 30 unseen seeds per configuration. At 5 and 10 robots, GNN strict
 collision-free success is 0.967 and 0.958, respectively, with no recorded
 physical collisions. The graph transformer achieves 0.983 and 1.000 under
@@ -597,9 +597,6 @@ Evaluation is limited to simulation. Further work will examine training
 with explicit safety constraints, comparison with reference RVO
 implementations, cross-map generalization, and physical-robot experiments.
 
-% The IEEEtran bibliography defaults to \footnotesize; tighten it slightly so
-% the reference list fits the six-page limit without dropping citations.
-\renewcommand{\footnotesize}{\fontsize{7.5}{8.6}\selectfont}
 \bibliographystyle{IEEEtran}
 \bibliography{references}
 
