@@ -22,6 +22,15 @@
 
 \graphicspath{{../../figures/generated/}}
 
+% 与英文稿一致的浮动体间距。IEEEtran 默认的浮动体间距偏大，
+% 本文 3 个表格与 5 组图会把最后一条参考文献挤到单独一页。
+\setlength{\textfloatsep}{6pt plus 2pt minus 2pt}
+\setlength{\floatsep}{6pt plus 2pt minus 2pt}
+\setlength{\intextsep}{6pt plus 2pt minus 2pt}
+\setlength{\abovecaptionskip}{3pt}
+\setlength{\belowcaptionskip}{2pt}
+\renewcommand{\arraystretch}{0.92}
+
 \makeatletter
 \newcommand{\authname}[1]{{\@IEEEauthorblockNstyle #1}}
 \newcommand{\authaff}[1]{{\@IEEEauthorblockAstyle #1}}
@@ -330,6 +339,10 @@ Graph Transformer & 1.00/1.50 & 0.94/1.65 & 0.80/1.99 & 0.56/2.33 & 0.34/2.69\\
 本文提出了结合相对运动边特征、联合模仿训练目标和外部安全过滤器的多机器人动态图策略。局部消息传递提高了相对同等容量无边策略的目标到达率，全局连通则未带来一致的额外收益。安全过滤增大了机器人间距，并在多规模测试的 5--10 个机器人场景中实现了较高的无碰撞成功率。GNN 在各测试规模下保持毫秒级控制时间。
 
 实验也表明，主对比中均值聚合 GNN 的目标到达率低于独立 MLP，30--40 个机器人下的严格无碰撞成功率明显下降。主实验 GNN 仅在单一规模上训练，规则专家也限制了可供模仿的行为。RVO-style 基线采用有限候选采样，并非经过验证的 RVO 实现；当前验证仍限于仿真。后续将研究显式安全约束训练、与 RVO 参考实现的对比、跨地图泛化及真实机器人实验。
+
+\section*{数据可用性}
+
+本文的代码、配置文件与实验记录可向通信作者索取。
 
 \bibliographystyle{IEEEtran}
 \bibliography{references}

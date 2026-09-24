@@ -20,6 +20,16 @@
 
 \graphicspath{{../../figures/generated/}}
 
+% Tighter float spacing, as in the companion IEEE manuscript: the default
+% IEEEtran float skips are generous and the three tables and five figure
+% groups here would otherwise push the last reference onto a page of its own.
+\setlength{\textfloatsep}{6pt plus 2pt minus 2pt}
+\setlength{\floatsep}{6pt plus 2pt minus 2pt}
+\setlength{\intextsep}{6pt plus 2pt minus 2pt}
+\setlength{\abovecaptionskip}{3pt}
+\setlength{\belowcaptionskip}{2pt}
+\renewcommand{\arraystretch}{0.92}
+
 % IEEEtran's conference \and does not create a tabular column: it ends one
 % halign and starts another, joining the blocks with stretchy \hfill. Each row
 % then distributes its leftover space independently, so the author blocks land
@@ -596,6 +606,11 @@ sampling and should not be equated with a verified RVO implementation.
 Evaluation is limited to simulation. Further work will examine training
 with explicit safety constraints, comparison with reference RVO
 implementations, cross-map generalization, and physical-robot experiments.
+
+\section*{Data Availability}
+
+The code, configuration files, and experiment records supporting this study
+are available from the corresponding author on reasonable request.
 
 \bibliographystyle{IEEEtran}
 \bibliography{references}
