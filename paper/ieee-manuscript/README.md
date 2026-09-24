@@ -90,8 +90,17 @@ on the name), and the two Henan grants in a `\thanks`. `main-en.tex` and
 `main-zh.tex` both need `\IEEEoverridecommandlockouts` for `\thanks` to work
 inside `\author`.
 
+Both author blocks follow the bundled template's ordinal prefixes: 1st Xuelin
+Hu, 2nd Xiaoqin Fu, 3rd Youjing Fu, 4th Jingchao Wang (corresponding author),
+5th Pengming Hu, and 6th Simeng Li. The suffixes are superscripted; these
+numbers indicate author order, not affiliation identifiers. Read the two
+rows from left to right, then top to bottom.
+
 The Chinese version currently prints author names in their romanized form —
 the Chinese characters were not available. Affiliations are in Chinese.
+Affiliations list only the institution: Liuzhou Railway Vocational Technical
+College, Lanzhou University, or Zhongyuan University of Technology. Department
+and secondary-school names are omitted in both languages.
 
 ### Why the English author block is a `tabular`
 
@@ -123,8 +132,7 @@ appearance still matches the class defaults.
 ## Before submission
 
 - Supply the Chinese characters for the six author names in `main-zh.tex`,
-  and confirm the Chinese rendering of the Zhongyuan University of Technology
-  school name and of the first Henan grant (both were inferred).
+  and confirm the Chinese rendering of the first Henan grant.
 - Verify the RVO-style baseline is described as a finite-lattice
   implementation, not a formally verified RVO library (Section IV-B and the
   Limitations discussion both say so — keep that wording).
