@@ -37,147 +37,137 @@
 Navigation: Edge Features, Safety Filtering, and Density Limits}
 
 \author{%
-\begin{tabular}{@{}c@{\hspace{1.6cm}}c@{}}
-\authname{Xuelin Hu} & \authname{Xiaoqin Fu\textsuperscript{*}} \\[0.9ex]
-\authaff{\textit{Liuzhou Railway Vocational Technical College}} &
-\authaff{\textit{Liuzhou Railway Vocational Technical College}} \\
-\authaff{Liuzhou 545000, China} & \authaff{Liuzhou 545000, China} \\
-\authaff{huxuelinai@gmail.com; huxl@ltzy.edu.cn} &
-\authaff{xiaoqin.fu@qq.com; fuxiaoqin@ltzy.edu.cn} \\[2.2ex]
-\authname{Youjing Fu} & \authname{Jingchao Wang} \\[0.9ex]
-\authaff{\textit{College of Earth and Environmental Sciences}} &
-\authaff{\textit{School of Computer Science}} \\
-\authaff{\textit{Lanzhou University}} &
-\authaff{\textit{Zhongyuan University of Technology}} \\
-\authaff{Lanzhou 730000, China} & \authaff{Zhengzhou 450007, China} \\
-\authaff{fuyj2025@lzu.edu.cn} & \authaff{static@zut.edu.cn}
+\begin{tabular}{@{}*{3}{>{\centering\arraybackslash}p{0.31\textwidth}}@{}}
+\authname{Xuelin Hu} & \authname{Xiaoqin Fu} & \authname{Youjing Fu} \\[0.9ex]
+\authaff{\textit{Liuzhou Railway Vocational}} &
+\authaff{\textit{Liuzhou Railway Vocational}} &
+\authaff{\textit{College of Earth and}} \\
+\authaff{\textit{Technical College}} & \authaff{\textit{Technical College}} &
+\authaff{\textit{Environmental Sciences}} \\
+ & & \authaff{\textit{Lanzhou University}} \\
+\authaff{Liuzhou 545000, China} & \authaff{Liuzhou 545000, China} &
+\authaff{Lanzhou 730000, China} \\
+\authaff{huxl@ltzy.edu.cn} & \authaff{fuxiaoqin@ltzy.edu.cn} &
+\authaff{fuyj2025@lzu.edu.cn} \\[2.2ex]
+\authname{Jingchao Wang\textsuperscript{*}} & \authname{Pengming Hu} & \authname{Simeng Li} \\[0.9ex]
+\authaff{\textit{School of Computer Science}} &
+\authaff{\textit{School of Computer Science}} &
+\authaff{\textit{Liuzhou Railway Vocational}} \\
+\authaff{\textit{Zhongyuan University}} &
+\authaff{\textit{Zhongyuan University}} &
+\authaff{\textit{Technical College}} \\
+\authaff{\textit{of Technology}} & \authaff{\textit{of Technology}} & \\
+\authaff{Zhengzhou 450007, China} & \authaff{Zhengzhou 450007, China} &
+\authaff{Liuzhou 545000, China} \\
+\authaff{static@zut.edu.cn} & \authaff{hupengming@zut.edu.cn} &
+\authaff{lisimeng@ltzy.edu.cn}
 \end{tabular}%
 \thanks{This work was supported by the Science and Technology Research
 Project of Henan Province (grant no.~262102211055) and the Key Scientific
 Research Project of Colleges and Universities in Henan Province (grant
 no.~27AQ520018).}
-\thanks{\textsuperscript{*}Corresponding author: Xiaoqin Fu.}
+\thanks{\textsuperscript{*}Corresponding author: Jingchao Wang.}
 }
 
 \maketitle
 
 \begin{abstract}
-Multi-robot navigation in shared space requires simultaneous goal reaching,
-coordination, and collision avoidance under a communication topology that
-changes at every control step. We study whether a shared message-passing
-policy over a dynamic communication graph can deliver such behavior, and we
-report where it fails. Robots are modelled as graph nodes, edges are
-established by a communication radius, and each directed edge carries a
-five-dimensional relative-motion feature that encodes normalized relative
-position, relative velocity, and closing speed. Policies are trained by
-imitation from an ORCA-style expert with a joint objective combining action,
-one-step separation, goal-progress, and smoothness terms, and are optionally
-followed by an external pairwise safety filter. We evaluate A* grid tracking,
-ORCA-style and RVO-style local controllers, an independent per-robot MLP, a
-message-passing GNN, a neighbor-attention GNN, and a graph transformer over
-four map families, 5--40 robots, and 30 unseen test seeds, with ROS~2,
-Gazebo, and RViz2 integration verified on a Wheeltec platform. Message
-passing improves task completion over an edge-free policy of identical
-capacity (0.725 versus 0.425 success at 10 robots), but the mean-aggregation
-GNN does not surpass the independent MLP in the main comparison, and adding
-neighbor attention lowers success to 0.342. Multi-scale training with edge
-features raises goal success to 0.958--0.967 at 5--10 robots under safety
-filtering, yet strict no-physical-collision success falls from 0.708 at 20
-robots to 0.250 at 30 and 0.000 at 40. We therefore identify 10--20 robots as
-the practical operating range of the current system and treat higher
-densities as a stress test that exposes a safety bottleneck which imitation
-learning alone does not remove.
+Multi-robot navigation requires coordinated motion and collision avoidance
+under changing neighbor relations and limited communication. This paper
+presents a dynamic graph neural policy that represents robots as nodes and
+local communication links as edges. Five-dimensional relative-motion edge
+features encode relative position, velocity, and closing speed, while shared
+message passing produces local velocity commands for variable-size teams.
+The policy is trained by imitation with separation, goal-progress, and
+smoothness losses, and an external safety filter corrects approaching robot
+pairs during execution. Evaluation covers four map families and teams of
+5--40 robots, with 30 unseen seeds per multi-scale configuration. Local
+message passing improves goal-reaching success over an edge-free policy of
+the same capacity. Safety filtering reduces close encounters and increases
+minimum inter-robot separation. In the tested 5--10-robot settings, the
+filtered policies achieve high collision-free success while retaining
+millisecond-level control time. These results support the use of local graph
+interaction and safety filtering for cooperative navigation at low to
+moderate team densities.
 \end{abstract}
 
 \begin{IEEEkeywords}
 multi-robot systems, graph neural networks, cooperative navigation, collision
-avoidance, dynamic interaction graphs, ROS~2.
+avoidance, dynamic interaction graphs.
 \end{IEEEkeywords}
 
 \section{Introduction}
 
-Cooperative navigation asks a group of robots to reach assigned goals in a
-shared workspace without colliding with each other or with static obstacles.
-Two properties make this harder than single-robot planning: the joint state
-space grows with the population, and the influence each robot has on the
-others is time-varying, since neighbors continuously enter and leave sensing
-range. Centralized joint search stays exact but scales poorly, while fully
-independent local policies discard the interaction structure that makes the
-problem tractable at all.
+Multi-robot cooperative navigation requires robots to reach assigned goals
+without colliding with one another or with static obstacles. As the number
+of robots increases, joint planning becomes more costly and local
+interactions become harder to coordinate. These interactions also change as
+neighbors enter and leave sensing range. Centralized search must account for
+the joint state space, whereas independent policies do not explicitly model
+the relationships among robots.
 
-Graph neural networks (GNNs) offer a middle ground. A robot group can be
-represented as a graph whose nodes are robots and whose edges are
-communication relations, and message passing then aggregates neighbor
-information while sharing parameters across nodes. Because the same weights
-apply at every node, one policy can serve a variable number of robots; because
-edges are rebuilt from current positions, the representation adapts to a
-changing topology.
+Graph neural networks (GNNs) represent these relationships through robot
+nodes and communication edges. Message passing aggregates neighbor
+information, and parameter sharing allows the same policy to process
+different team sizes. Rebuilding edges from current positions updates the
+interaction structure as the robots move.
 
-This paper asks two questions. Given identical observations, action limits,
-and termination rules, does an explicit local communication graph improve a
-learned policy relative to one that sees only its own node features? And how
-do communication range and an external safety filter trade off among goal
-completion, collision risk, and per-step computation?
+We examine how local graph communication affects goal-reaching success
+relative to a policy using only its own node features. We also evaluate how
+communication radius and safety filtering affect collision risk and control
+time. Comparisons use the same observations, action limits, and termination
+rules.
 
 Our contributions are:
 \begin{itemize}
-  \item a reproducible framework unifying scenario generation, classical and
-  learned baselines, training, evaluation, and visualization under one data
-  contract;
-  \item a message-passing policy with five-dimensional relative-motion edge
-  features, a joint imitation and separation objective, and an external
-  pairwise safety filter ablated separately from the policy;
-  \item a comparison spanning A*, ORCA-style, RVO-style, an independent MLP, a
-  mean-aggregation GNN, a neighbor-attention GNN, and a graph transformer over
-  four map families, 5--40 robots, and 30 unseen seeds, with edge, radius, and
-  safety ablations;
-  \item a ROS~2, Gazebo, and RViz2 integration on a Wheeltec platform
-  validating namespaced odometry, LiDAR, velocity-command, and marker topics.
+  \item a dynamic graph policy using five-dimensional edge features for
+  normalized relative position, relative velocity, and closing speed, with
+  shared message passing for variable-size robot teams;
+  \item a training and execution scheme combining action imitation,
+  one-step separation, goal progress, and smoothness losses with an optional
+  external pairwise safety filter, whose effect is evaluated separately from
+  the neural policy;
+  \item a reproducible evaluation across four map families, 5--40 robots, and
+  30 unseen seeds, with classical and neural baselines and graph, radius, and
+  safety ablations to measure the effects of robot density.
 \end{itemize}
-
-We do not frame the results as a general superiority claim for GNNs. Several
-measurements contradict that reading, and Section~\ref{sec:results} reports
-them as measured.
 
 \section{Related Work}
 
 \subsection{Classical and Rule-Based Planning}
-A* searches a discretized grid heuristically and is complete on a static map,
-but coordinating one path per robot reintroduces combinatorial coupling
-\cite{hart1968}. Velocity-obstacle methods instead reason in velocity space,
-rejecting a candidate velocity if the relative motion it induces would
-intersect a neighbor's trajectory \cite{fiorini1998}. They are cheap and
-geometrically interpretable, but depend strongly on the time horizon and on
-the reciprocity assumed between agents.
+A* uses heuristic search to find paths on a discretized map
+\cite{hart1968}. In multi-robot settings, independently planned paths still
+require coordination to avoid conflicts. Velocity-obstacle methods identify
+velocities that would lead to collisions under predicted relative motion
+\cite{fiorini1998}. Their geometric formulation supports local collision
+avoidance, with performance depending on the prediction horizon and the
+assumptions about neighboring agents' motion.
 
 \subsection{Learned Multi-Robot Collision Avoidance}
-Decentralized deep reinforcement learning removes joint search by acting from
-local observations, though dense interactions outside the training
-distribution remain a failure mode \cite{long2018orcamarl, thumiger2022uav}.
-Curriculum learning grows the difficulty of constrained passages
-\cite{komol2025curriculum}, physics-informed priors encourage safe behavior
-\cite{feng2024physics}, and semi-supervised variants cut the labeling
-requirement \cite{parooei2023semisupervised}. Vessel and formation
-applications show that communication and shape constraints fold into the same
-learning problem \cite{niu2023ship, wang2025ships}.
+Decentralized deep reinforcement learning maps local observations to motion
+commands, reducing the need for joint planning
+\cite{long2018orcamarl, thumiger2022uav}. Curriculum learning introduces
+increasingly difficult constrained passages \cite{komol2025curriculum};
+physics-informed priors guide policy learning \cite{feng2024physics}; and
+semi-supervised methods reduce labeling requirements
+\cite{parooei2023semisupervised}. Related studies address communication and
+formation constraints in vessel navigation \cite{niu2023ship, wang2025ships}.
 
 \subsection{Graph Representations for Robot Teams}
-Diao \textit{et al.} encode spatial relations in a graph for path planning
-\cite{diao2024gnn}, and He \textit{et al.} pair graph attention with
-hierarchical motion planning to select the neighbors that matter
+Diao \textit{et al.} encode spatial relations with a GNN for path planning
+\cite{diao2024gnn}. He \textit{et al.} combine graph attention with
+hierarchical motion planning to weight neighboring agents
 \cite{he2023ganav}. Goarin and Loianno use a GNN for decentralized goal
-assignment, which suits variable team sizes but does not address continuous
-avoidance \cite{goarin2024assignment}, and Yang \textit{et al.} couple a GNN
-with PPO for multi-UAV planning \cite{yang2025uav}. Surveys note the recurring
-tension that rule-based methods are interpretable but brittle while learned
-methods are flexible but lack hard guarantees \cite{yang2025survey}.
+assignment \cite{goarin2024assignment}, while Yang \textit{et al.} combine
+a GNN with PPO for multi-UAV planning \cite{yang2025uav}. A recent survey
+reviews rule-based and learned coordination methods for multi-robot
+collision avoidance \cite{yang2025survey}.
 
-Our design follows that tension's suggested compromise: a graph policy learns
-cooperative motion and a separate filter handles close-range closure risk. We
-ablate the two independently and report strict physical-collision metrics for
-each rather than attributing filtered behavior to the network. We also note
-that reported gains are frequently established at a single population size on
-a few maps; the multi-scale stress test below probes that gap.
+This work combines a graph policy for local motion with a separate filter
+for approaching robot pairs. Graph and filter ablations distinguish the
+effects of learned interaction from those of action correction. Tests across
+four map families and five team sizes assess how these effects change with
+robot density.
 
 \section{Problem Formulation}
 
@@ -199,55 +189,57 @@ policy emits a two-dimensional local velocity $u_i$ with
 $\|u_i\|\le v_{\max}=1.4$~m/s, and positions evolve as
 $p_i^{t+1}=p_i^t+\Delta t\,u_i^t$ with $\Delta t=0.08$~s.
 
-Two distance thresholds are used throughout and never conflated. A
-\emph{safety violation} occurs when any pair is closer than $d_s=0.72$~m; a
-\emph{physical collision} occurs when any pair is closer than the sum of the
-robot radii, $0.56$~m. A \emph{collision event} is counted each time a pair
-transitions from a non-violating to a violating state, so a sustained overlap
-contributes one event rather than one per step. Task success requires the
-final mean goal error across all robots to fall below a fixed threshold.
+We distinguish safety-distance violations from physical collisions. A
+\emph{safety violation} occurs when a pair is closer than $d_s=0.72$~m; a
+\emph{physical collision} occurs when the distance is less than the sum of
+the robot radii, $0.56$~m. An event is counted when a pair crosses from outside
+to inside the corresponding threshold; a sustained violation counts as one
+event. Task success requires the final mean goal error across all robots to
+fall below a fixed threshold. Strict collision-free success additionally
+requires that no physical collision occur during the episode.
 
-To keep quantities of different scale comparable inside the network, define
-the normalized operator $\bar{x}=x/s_x$. For a directed edge $(j,i)$ we use
-the five-dimensional feature
+Relative position and velocity are normalized by map size and maximum speed,
+respectively. For a directed edge $(j,i)$, the five-dimensional feature is
 \begin{equation}
 e_{ij}^t=\left[\frac{p_i^t-p_j^t}{[W,H]},\ \frac{v_i^t-v_j^t}{v_{\max}},\
 \frac{-\big((v_i^t-v_j^t)\cdot\hat{r}_{ij}^t\big)}{v_{\max}}\right],
 \end{equation}
 with $\hat{r}_{ij}^t=(p_i^t-p_j^t)/(\|p_i^t-p_j^t\|+\epsilon)$ and $[W,H]$ the
-map extents. The final component is the closing speed, positive precisely when
-the pair is approaching, so the network can condition on motion tendency rather
-than instantaneous distance alone.
+map extents. The closing-speed component is positive when the robots
+approach each other, providing information about relative motion in
+addition to distance.
 
 \section{Method}
 
 \subsection{System Overview}
-Fig.~\ref{fig:arch} shows the closed loop. Each robot is a node, edges follow
-the communication radius, and the encoder, message-passing layers, and action
-head share parameters across nodes, so one policy handles any population size
-without retraining. Observations are assembled from the current state, the
-graph is rebuilt, and the safety filter optionally corrects the emitted
-velocity before execution.
+Fig.~\ref{fig:arch} organizes the closed loop from left to right: the robot
+scene and observed states, structured graph inputs, feature embedding, the
+shared GNN policy, and velocity output with optional safety filtering.
+Each robot supplies an eight-dimensional node feature; communication-radius
+edges carry five-dimensional relative-motion features. The shared encoder
+and three message-passing layers produce node representations for a shared
+two-dimensional velocity head. Executed actions update the scene and the
+graph is rebuilt at the next control step. Candidate actions illustrate
+motion choices; the learned policy directly regresses velocity rather than
+receiving a candidate-action list as input.
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=\textwidth]{gnn_architecture_ai_v3.png}
-\caption{Dynamic-graph message-passing policy. Node and five-dimensional edge
-features enter shared message-passing layers; the shared action head emits a
-bounded local velocity that the optional safety filter may correct.}
+\includegraphics[width=\textwidth,trim=0 65bp 0 85bp,clip]{gnn_architecture_ai_fig1_draft_v2.png}
+\caption{Multi-robot navigation pipeline: robot scene and states, structured
+graph inputs, feature embedding, shared GNN inference, and action output with
+optional safety filtering. Executed motion closes the observation--action loop.}
 \label{fig:arch}
 \end{figure*}
 
 \subsection{Baselines}
-We implement A* grid tracking, an ORCA-style local repulsion controller, and a
-dependency-free RVO-style controller that enumerates candidate velocities over
-a finite lattice of headings and speed levels, scoring each by predicted
-neighbor clearance, obstacle occupancy, and goal progress. Because it exists to
-give every method a common substrate, we call it RVO-style and claim no
-equivalence to a formally verified RVO reference library. The independent MLP
-applies the same perceptron to every node and never receives the adjacency
-matrix, isolating the contribution of explicit interaction modelling from that
-of the node features themselves.
+The baselines include A* grid tracking, an ORCA-style local repulsion
+controller, and an RVO-style controller that samples a finite lattice of
+headings and speeds. The RVO-style controller scores candidate velocities by
+predicted neighbor clearance, obstacle occupancy, and goal progress. It is
+implemented for this benchmark and is not a formally verified RVO reference
+implementation. The independent MLP shares parameters across robots but uses
+only node features, without the adjacency matrix.
 
 \subsection{Message-Passing Policy}
 A linear layer first maps node features to a hidden representation. Each
@@ -267,12 +259,11 @@ message-passing layers, 128 hidden units, and a shared action head, with the
 action bounded by $\hat{u}_i=v_{\max}\tanh(f_\theta(h_i))$.
 
 \subsection{Attention Variants}
-To test whether neighbor weighting or global self-attention changes the
-picture, we add two models with identical inputs, outputs, data, and test
-scenarios. The neighbor-attention GNN replaces mean aggregation with
-multi-head attention over queries, keys, and values, still masked by the local
-adjacency. The graph transformer uses multi-head self-attention with the
-dynamic adjacency as mask, residual connections, and feed-forward blocks. Both
+Two attention models are evaluated with the same inputs, outputs, data,
+and test scenarios. The neighbor-attention GNN replaces mean aggregation
+with multi-head attention over queries, keys, and values, masked by the local
+adjacency. The graph transformer uses adjacency-masked multi-head
+self-attention, residual connections, and feed-forward blocks. Both models
 use 128 hidden units, four heads, and a shared policy head.
 
 \subsection{Training Objective}
@@ -286,7 +277,7 @@ where $\mathcal{L}_{act}=\frac{1}{|\mathcal{V}|}\sum_i
 \mathrm{Huber}(u_i,u_i^*)$ is the imitation term. Writing the one-step
 predicted pair distance as $d_{ij}'=\|p_i+\Delta t\,u_i-p_j-\Delta t\,u_j\|$,
 $\mathcal{L}_{col}=\frac{1}{N(N-1)}\sum_{i\neq j}[d_s-d_{ij}']_+^2$ penalizes
-predicted separation. The remaining terms are
+predicted distances below the safety threshold. The remaining terms are
 \begin{equation}
 \begin{aligned}
 \mathcal{L}_{prog}&=\tfrac{1}{N}{\textstyle\sum_i}[\|g_i-p_i'\|-\|g_i-p_i\|]_+,\\
@@ -297,10 +288,10 @@ with $[x]_+=\max(x,0)$. Padding nodes are masked by $q_i\in\{0,1\}$, so every
 node loss becomes $\sum_i q_i\ell_i/\max(1,\sum_i q_i)$ and a graph padded to
 40 nodes trains on exactly the real robots in it.
 
-Multi-scale training samples the 5--40 robot datasets from all four map
-families and pads each graph to 40 nodes. The progress and smoothness terms
-matter in practice: a separation penalty alone reduces goal progress, so its
-weight must be scheduled or paired with $\mathcal{L}_{prog}$.
+Multi-scale training samples datasets with 5--40 robots from all four map
+families and pads each graph to 40 nodes. The progress term penalizes motion
+away from the goal, while the smoothness term limits changes between
+successive actions.
 
 \subsection{Safety Filter}
 After the policy emits its action, the filter inspects every close pair and
@@ -314,16 +305,16 @@ $\|\delta_{ij}\|<d_s+\tau$ and $(u_i-u_j)\cdot n_{ij}<0$, then
 \kappa_{ij}&=-(u_i-u_j)\cdot n_{ij}+[d_s+\tau-\|\delta_{ij}\|]_+,
 \end{aligned}
 \end{equation}
-after which each $\tilde{u}_i$ is clipped to $v_{\max}$. The module runs only
-at inference and in the ROS control path, and Section~\ref{sec:results}
-reports its effect separately from the policy's.
+after which each $\tilde{u}_i$ is clipped to $v_{\max}$. The filter operates
+only during inference; Section~\ref{sec:results} evaluates its effect
+separately from that of the learned policy.
 
 \section{Experimental Setup}
 
 Experiments span four map families---\textit{crossing}, \textit{open},
 \textit{random}, and \textit{narrow}---and 5, 10, 20, 30, and 40 robots.
 Development data uses fixed seeds with 20 episodes of at most 160 steps each.
-The frozen main evaluation covers $4\times3\times5\times10=600$ episodes over
+The main evaluation covers $4\times3\times5\times10=600$ episodes over
 three robot counts, five methods, and ten fixed test seeds; the extended
 learned-model comparison covers 480 episodes for four learned policies; and
 the multi-scale test covers 1800 safety-filtered and 1800 unfiltered episodes
@@ -344,23 +335,22 @@ size 128.
 \label{sec:results}
 
 \subsection{Main Comparison}
-Table~\ref{tab:main} aggregates the frozen 600-episode comparison. The
-classical controllers are strong: A* reaches every goal, and RVO-style reaches
-0.975--1.000 success with the shortest paths, but its control time grows almost
-two orders of magnitude across the range, from 7.8~ms at 5 robots to 87.4~ms
-at 20. ORCA-style keeps the largest minimum separation (0.396~m at 5 robots)
-at the lowest per-step cost, though some narrow passages stall it. The
-independent MLP is the strongest learned policy here at 0.725--0.875 success.
+Table~\ref{tab:main} summarizes the 600-episode main comparison. A* attains
+a task success rate of 1.000 at each team size. RVO-style achieves
+0.975--1.000 success and the shortest paths, while its mean control time
+increases from 7.8~ms at 5 robots to 87.4~ms at 20 robots, approximately an
+11-fold increase. ORCA-style has the lowest control time and the largest
+minimum separation at each team size. Among the learned policies in this
+comparison, the independent MLP achieves the higher success rates
+(0.725--0.875).
 
-The mean-aggregation GNN does not beat that MLP. It reaches 0.625, 0.725, and
-0.700 success at 5, 10, and 20 robots with comparable collision-event counts,
-and its path lengths and control times are the highest among learned methods.
-This checkpoint was trained on 10-robot data only, so the 5 and 20-robot
-columns are cross-scale generalization rather than matched training
-conditions. The conclusion we draw is narrow but firm: on this benchmark,
-adding a communication graph is not by itself sufficient to outperform an
-independent policy, and success rate or path length alone would not justify a
-superiority claim.
+The mean-aggregation GNN reaches success rates of 0.625, 0.725, and 0.700
+at 5, 10, and 20 robots. These rates are below those of the MLP, while the
+GNN has larger minimum inter-robot separation at each team size. The GNN
+checkpoint was trained only on 10-robot data; its 5- and 20-robot results
+therefore measure generalization across team sizes. The graph ablation below
+compares the same network with and without communication edges to isolate
+the effect of message passing.
 
 \begin{table*}[t]
 \caption{Main comparison over four map families and ten fixed test seeds
@@ -387,16 +377,15 @@ GNN        & 0.625 & 1.850  & 0.224 & 0.683 & 0.725 & 5.675  & 0.149 & 0.828 & 0
 \end{table*}
 
 \subsection{Attention and Transformer Variants}
-Table~\ref{tab:learned} compares four learned policies on 480 episodes.
-Overall goal success is 0.817 for the MLP, 0.683 for the GNN, 0.558 for the
-graph transformer, and 0.342 for the neighbor-attention GNN; collision-free
-success under the 0.56~m threshold is 0.017, 0.008, 0.058, and 0.025. Two
-observations follow. The transformer roughly doubles the GNN's strict success
-while costing about 1.6$\times$ the control time, so expressiveness helps even
-while the safety outcome stays poor. But adding attention in its
-neighbor-masked form hurts badly, cutting success to 0.342 and raising control
-time to 1.298~ms. Attention is not a free improvement, and no variant here is
-safe on its own.
+Table~\ref{tab:learned} compares four learned policies over 480 episodes.
+Goal success is 0.817 for the MLP, 0.683 for the GNN, 0.558 for the graph
+transformer, and 0.342 for the neighbor-attention GNN. Their strict
+collision-free success rates are 0.017, 0.008, 0.058, and 0.025,
+respectively. The graph transformer has the highest strict success rate,
+with a mean control time of 1.365~ms compared with 0.856~ms for the GNN.
+Neighbor attention increases mean minimum separation to 0.259~m, but lowers
+goal success and takes 1.298~ms per step. These unfiltered policies remain
+insufficient for reliable collision-free navigation.
 
 \begin{table}[t]
 \caption{Learned-policy comparison (480 episodes). Strict success requires
@@ -421,33 +410,32 @@ Graph transformer & 0.558 & 0.058 & 8.833 & 0.221 & 1.365 \\
 \begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{baselines_final.png}
-\caption{Aggregate comparison across methods and robot counts on the frozen
-600-episode evaluation. Classical controllers dominate success and path length;
-learned policies trade completion for lower per-step cost.}
+\caption{Comparison of goal success, path length, and control time across methods
+and team sizes in the 600-episode main evaluation.}
 \label{fig:baselines}
 \end{figure}
 
 \subsection{Graph Structure Ablation}
-Removing edges isolates the contribution of message passing
-(Fig.~\ref{fig:ablations}a). At 10 robots the local-graph policy reaches 0.725
-success against 0.425 for the edge-free policy of identical capacity; at 20
-robots the figures are 0.700 and 0.425, and at 5 robots 0.625 against 0.500.
-The global graph, connecting every pair regardless of distance, does not
-improve on the local graph and is worse at 10 robots (0.625 versus 0.725).
-Message passing therefore contributes real coordination ability, but a denser
-graph is not automatically better and neither variant removes collisions.
+The graph ablation compares local, global, and edge-free connectivity
+(Fig.~\ref{fig:ablations}a). At 10 robots, the local graph reaches 0.725
+success compared with 0.425 for the edge-free policy of the same capacity,
+an increase of 30 percentage points. At 5 and 20 robots, the corresponding
+increases are 12.5 and 27.5 percentage points. Fully connecting the graph
+does not improve on local communication; at 10 robots, success is 0.625 for
+the global graph and 0.725 for the local graph. These results support local
+neighbor exchange for goal reaching, although collisions remain in both
+graph variants.
 
 \subsection{Safety Filter Ablation}
-The safety filter is evaluated on its own against the raw policy on 60
-episodes (Fig.~\ref{fig:ablations}b). At 10 robots it reduces mean collision
-events from 4.900 to 0.200 and raises mean minimum separation from 0.069~m to
-0.794~m, but success drops from 1.000 to 0.900. At 20 robots collision events
-fall from 27.500 to 6.900 with success falling from 0.900 to 0.700, and
-separation reaches only 0.067~m, so no stable collision-free arrival is
-achieved at that density. The filter also leaves some robots stalled rather
-than rerouting them. The trade is direct: separation improves substantially
-while task completion degrades, which is our main reason for arguing that the
-safety constraint belongs in training rather than in a post-hoc projection.
+The safety-filter ablation compares raw and corrected GNN actions over 60
+episodes (Fig.~\ref{fig:ablations}b). At 10 robots, filtering reduces mean
+safety-violation events from 4.900 to 0.200 and increases mean minimum
+separation from 0.069~m to 0.794~m, while goal success decreases from 1.000
+to 0.900. At 20 robots, violation events decrease from 27.500 to 6.900 and
+goal success from 0.900 to 0.700; mean minimum separation is 0.067~m.
+The correction improves spacing but can impede goal progress. Its limited
+effect at 20 robots motivates further study of safety constraints during
+training.
 
 \begin{figure*}[t]
 \centering
@@ -461,45 +449,44 @@ safety constraint belongs in training rather than in a post-hoc projection.
 \includegraphics[width=\linewidth]{ablation_safety_final.png}\\
 (b) Safety filter
 \end{minipage}
-\caption{Ablations. (a) Edge-free, local-radius, and global connectivity at 5,
-10, and 20 robots: message passing contributes real coordination ability while
-a denser graph is not automatically better. (b) Raw against filtered policy,
-showing the separation gain versus the success loss.}
+\caption{Ablation results at 5, 10, and 20 robots. (a) Goal success with edge-free,
+local, and global graphs. (b) Goal success, safety-violation events, and
+minimum separation before and after safety filtering.}
 \label{fig:ablations}
 \end{figure*}
 
 \subsection{Communication Radius}
-Larger radii increase mean graph degree and supply more neighbors at the cost
-of more aggregation work. At 10 robots a radius of 2.0~m yields only 0.200
-success with mean degree 0.463, while 3.4~m and 5.5~m both reach 1.000 success
-with degrees 2.283 and 4.420; the global graph reaches 0.900 with degree
-9.000. At 5 robots success climbs monotonically from 0.100 at 2.0~m to 1.000
-for the global graph, indicating that sparse graphs simply disconnect small
-teams. Control time stays near 1.0~ms across radii, so the connectivity gain
-is nearly free below 20 robots; the global graph does not, however, eliminate
-physical collisions.
+Increasing the communication radius adds neighbors to each robot's graph.
+At 10 robots, a radius of 2.0~m gives a mean degree of 0.463 and success of
+0.200. Radii of 3.4~m and 5.5~m increase mean degree to 2.283 and 4.420,
+respectively, and both achieve success of 1.000. The global graph has mean
+degree 9.000 and success 0.900. At 5 robots, success increases from 0.100
+at 2.0~m to 1.000 with the global graph. The results indicate that a small
+radius can restrict information exchange, while additional neighbors beyond
+an adequate local range do not consistently improve success. Control time
+ranges from about 0.8 to 1.5~ms across the tested settings, and physical collisions are not
+eliminated by global connectivity.
 
 \subsection{Multi-Scale Stress Test}
-Table~\ref{tab:multiscale} reports the 1800-episode safety-filtered test over
-30 unseen seeds, and it is the most informative result in this paper. Goal
-success is high and stable at 5--20 robots: 0.967, 0.958, and 0.758 for the
-GNN and 0.983, 1.000, and 0.842 for the transformer. Strict collision-free
-success, however, falls from 0.967 at 5 robots to 0.708 at 20, 0.250 at 30,
-and 0.000 at 40 for the GNN, with the transformer showing the same shape
-(0.983, 1.000, 0.767, 0.242, 0.017). Physical collision events per episode
-rise from zero at 5--10 robots to 6.883 for the GNN and 9.025 for the
-transformer at 40 robots, and minimum separation collapses from above 0.95~m
-to about 0.4~m. Control time grows steadily with population, from 0.890~ms to
-2.066~ms for the GNN.
+Table~\ref{tab:multiscale} reports the 1800-episode safety-filtered test
+using 30 unseen seeds per configuration. At 5 and 10 robots, GNN strict
+collision-free success is 0.967 and 0.958, respectively, with no recorded
+physical collisions. The graph transformer achieves 0.983 and 1.000 under
+the same conditions. At 20 robots, goal success is 0.758 for the GNN and
+0.842 for the transformer, and strict success is 0.708 and 0.767.
+At 30 and 40 robots, strict success decreases to 0.250 and 0.000 for the
+GNN, and to 0.242 and 0.017 for the transformer. At 40 robots, mean physical
+collision events reach 6.883 for the GNN and 9.025 for the transformer, with
+minimum separation near 0.4~m. GNN mean control time increases from
+0.890~ms at 5 robots to 2.066~ms at 40 robots.
 
-Without the filter the picture is starker: the GNN reaches 0.992--1.000 goal
-success at every scale but strict collision-free success of 0.092 at 5 robots
-and 0.000 everywhere else, and the transformer never exceeds 0.117. High
-arrival rates therefore coexist with near-total failure of the safety
-criterion, which is exactly why we report the two separately. We read 10--20
-robots as the practical operating range of the current system and treat 30--40
-robots as a stress test: adding robots barely degrades goal seeking, but it
-overloads the mechanism meant to keep them apart.
+Without filtering, the GNN achieves goal success of 0.975--1.000 across
+team sizes, but strict collision-free success is 0.092 at 5 robots and
+0.000 at larger sizes. The unfiltered transformer's strict success does
+not exceed 0.117. Filtering therefore improves collision-free arrival,
+particularly at 5--10 robots, while reducing goal-reaching success. At
+30--40 robots, both completion and safety deteriorate in the filtered
+policies, limiting their use at these densities.
 
 \begin{table}[t]
 \caption{Multi-scale test with the safety filter over 30 unseen seeds
@@ -532,19 +519,11 @@ Transformer & 1.00/1.50 & 0.94/1.65 & 0.80/1.99 & 0.56/2.33 & 0.34/2.69\\
 \begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{multiscale_safety_scaling.png}
-\caption{Strict collision-free success, minimum separation, and per-step
-control time against population size under safety filtering. Goal success stays
-high while the safety criterion collapses above 20 robots.}
+\caption{Strict collision-free success, minimum separation, and mean control time
+with safety filtering at different team sizes. Collision-free success
+decreases as the number of robots exceeds 20.}
 \label{fig:scaling}
 \end{figure}
-
-\subsection{Seed Stability}
-Three independently trained GNN checkpoints give mean success of
-$0.517\pm0.388$, $0.767\pm0.161$, and $0.850\pm0.115$ at 5, 10, and 20 robots.
-The 5-robot variance is large enough that reporting a single best checkpoint
-would be misleading and indicates the present training configuration is not
-yet stable at small team sizes. All tables above aggregate over seeds and
-checkpoints rather than selecting the best run.
 
 \begin{figure*}[t]
 \centering
@@ -565,47 +544,35 @@ transient links between robots within the radius.}
 \label{fig:mapstraj}
 \end{figure*}
 
-\section{ROS~2 Integration}
-
-A Tkinter two-dimensional interface switches between the ORCA, RVO, A*, MLP,
-and GNN controllers and displays robots, goals, communication edges,
-trajectories, and live metrics. The ROS~2 adapter targets a Wheeltec model and
-was verified across three namespaces on the \texttt{/robot\_i/odom},
-\texttt{/robot\_i/scan}, and \texttt{/robot\_i/cmd\_vel} topics, with a marker
-node publishing \texttt{/multi\_robot/markers} so RViz2 renders robots, goals,
-trails, and graph edges; the launch script is
-\texttt{ros2/run\_multi\_robot\_gnn.sh}. This validates the topic contract and
-visualization path on a Gazebo model, not physical-robot behavior, and no
-real-hardware safety claim is made here.
+\subsection{Seed Stability}
+Three independently trained GNN checkpoints give mean success of
+$0.517\pm0.388$, $0.767\pm0.161$, and $0.850\pm0.115$ at 5, 10, and 20 robots.
+The standard deviations are computed across checkpoint-level mean success
+rates. Variation is largest at 5 robots, indicating sensitivity to the
+training seed in this setting. This analysis evaluates training variability
+separately from the episode-level averages reported for fixed checkpoints
+in the preceding comparisons.
 
 \section{Limitations and Conclusion}
 
-We built and evaluated a dynamic-graph message-passing framework for
-multi-robot cooperative navigation, combining five-dimensional
-relative-motion edge features, a joint imitation and separation objective, an
-external pairwise safety filter, and a verified ROS~2 path. The measurements
-support three conclusions. Message passing contributes genuine coordination
-ability: the same architecture with edges removed loses roughly 0.30 success
-at 10 robots. A denser graph is not automatically better, since the global
-graph fails to improve on the local one. Most importantly, filtering and
-imitation together deliver high arrival rates at 5--20 robots but cannot hold
-the safety criterion at 30--40 robots, where strict collision-free success
-collapses to near zero.
+This paper presents a dynamic graph policy for multi-robot navigation with
+relative-motion edge features, a joint imitation objective, and an external
+safety filter. Local message passing improves goal success relative to an
+edge-free policy of the same capacity, while global connectivity offers no
+consistent additional benefit. Safety filtering increases inter-robot
+separation and supports high collision-free success at 5--10 robots in the
+multi-scale test. The GNN maintains millisecond-level control time across
+the tested team sizes.
 
-Several caveats bound these conclusions. Our RVO-style controller is a
-finite-lattice method written for experimental uniformity, not a formally
-verified implementation of the RVO reference algorithm, so comparisons
-against it should be read accordingly. The main-comparison GNN checkpoint was
-trained at 10 robots, making its 5 and 20-robot numbers cross-scale
-generalization results rather than matched performance. The imitated expert is
-itself rule-based, so the policy inherits its teacher's limitations, and the
-Gazebo work demonstrates the interface and visualization chain only rather
-than physical-robot behavior. Finally, the present work is imitation-based;
-reinforcement fine-tuning with long-horizon progress and hard safety
-constraints remains incomplete, and the multi-scale results are the evidence
-that it is needed. The clear next steps are therefore safety-constrained
-policy training instead of post-hoc projection, a verified RVO baseline,
-improved cross-map generalization, and validation on physical robots.
+The experiments also identify limits. The mean-aggregation GNN does not
+exceed the independent MLP's goal success in the main comparison, and strict
+collision-free success declines at 30--40 robots. The main GNN checkpoint is
+trained at one team size, and the rule-based expert constrains the behaviors
+available for imitation. The RVO-style baseline uses finite candidate
+sampling and should not be equated with a verified RVO implementation.
+Evaluation is limited to simulation. Further work will examine training
+with explicit safety constraints, comparison with reference RVO
+implementations, cross-map generalization, and physical-robot experiments.
 
 % The IEEEtran bibliography defaults to \footnotesize; tighten it slightly so
 % the reference list fits the six-page limit without dropping citations.

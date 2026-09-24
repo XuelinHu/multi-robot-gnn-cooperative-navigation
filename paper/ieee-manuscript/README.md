@@ -11,9 +11,10 @@ template version 6/27/2024, taken unmodified from
 
 Both are limited to six pages. They are deliberately **isomorphic** — identical
 section order, the same three tables, the same five figure groups, the same
-bibliography — so the two can be read side by side paragraph by paragraph. The
-Chinese version runs one page shorter because Chinese text is more compact per
-line; no content was dropped to achieve it.
+bibliography — so the two can be read side by side paragraph by paragraph.
+After the abstract and prose revision, the English version occupies six pages
+and the Chinese version five pages. Their section order, figures, tables, and
+bibliography remain aligned; page breaks differ between languages.
 
 ## Build
 
@@ -76,7 +77,7 @@ merged: a **safety violation** at 0.72 m and a **physical collision** at
 ## Author and funding metadata
 
 Both files carry the same author block and first-page funding footnote:
-four authors, Xiaoqin Fu marked as corresponding author (`\textsuperscript{*}`
+six authors, Jingchao Wang marked as corresponding author (`\textsuperscript{*}`
 on the name), and the two Henan grants in a `\thanks`. `main-en.tex` and
 `main-zh.tex` both need `\IEEEoverridecommandlockouts` for `\thanks` to work
 inside `\author`.
@@ -113,7 +114,7 @@ appearance still matches the class defaults.
 
 ## Before submission
 
-- Supply the Chinese characters for the four author names in `main-zh.tex`,
+- Supply the Chinese characters for the six author names in `main-zh.tex`,
   and confirm the Chinese rendering of the Zhongyuan University of Technology
   school name and of the first Henan grant (both were inferred).
 - Verify the RVO-style baseline is described as a finite-lattice

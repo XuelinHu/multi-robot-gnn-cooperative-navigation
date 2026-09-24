@@ -31,10 +31,9 @@ Background: Multi-robot navigation requires goal reaching, coordination, and col
 
 本文的主要贡献包括：
 \begin{enumerate}
-  \item 构建一个可复现的多机器人路径规划实验框架，统一实现数据生成、基线、训练、评估和可视化；
-  \item 设计基于消息传递的 GNN 局部策略，并将节点特征、动态邻接关系和安全过滤层纳入统一控制流程；
-  \item 在四类地图、5--40 个机器人规模和 30 个未见测试种子上，对 A*、ORCA-style、RVO-style、MLP、GNN、Attention-GNN 和 Graph Transformer 进行比较，并开展安全层、通信半径和图结构消融；
-  \item 将控制器接入 Wheeltec Gazebo/RViz2 多机器人环境，验证命名空间、里程计、激光、速度控制和可视化话题链路。
+  \item 设计相对运动感知的动态图策略，将归一化相对位置、相对速度与接近速度组成五维边特征，通过共享消息传递建模机器人交互，支持可变规模的机器人团队；
+  \item 设计兼顾安全的学习与执行机制，联合动作模仿、一步间距、目标进度与平滑损失，并在执行阶段引入可选的外部两两安全过滤器，独立评估其作用与神经策略本身的效果；
+  \item 在四类地图、5--40 个机器人与 30 个未见种子上开展可复现验证，通过经典与神经基线对比及图结构、通信半径和安全层消融识别密度边界，并以统一实验框架和 ROS~2/Gazebo/RViz2 集成支撑验证。
 \end{enumerate}
 
 \section{相关工作}
@@ -66,12 +65,12 @@ A_{ij}=\begin{cases}1,&i\ne j,\ \|p_i-p_j\|\le R_c,\\0,&\text{otherwise.}\end{ca
 
 \section{方法}
 \subsection{总体架构}
-图~\ref{fig:architecture} 展示了从多机器人观测、动态图构建到动作执行的完整闭环。每个机器人对应一个图节点，边表示通信范围内的邻居关系。编码器和消息传递层使用共享参数，因而可以处理不同数量的机器人。
+图~\ref{fig:architecture} 从左至右展示机器人场景与状态、结构化图输入、特征嵌入、共享 GNN 策略以及动作输出与可选安全过滤。每个机器人对应一个图节点，边表示通信范围内的邻居关系。编码器和消息传递层使用共享参数，因而可以处理不同数量的机器人。图中候选动作示意运动选择，学习策略直接回归二维速度，并不输入候选动作列表。
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=\textwidth]{gnn_architecture_ai_v3.png}
-\caption{基于动态图消息传递的多机器人协同路径规划架构。}
+\includegraphics[width=\textwidth]{gnn_architecture_ai_fig1_draft_v2.png}
+\caption{多机器人导航闭环：场景与状态观测、结构化图输入、特征嵌入、共享 GNN 推理以及动作输出与可选安全过滤。}
 \label{fig:architecture}
 \end{figure}
 
