@@ -78,8 +78,8 @@ presents a dynamic graph neural policy that represents robots as nodes and
 local communication links as edges. Five-dimensional relative-motion edge
 features encode relative position, velocity, and closing speed, while shared
 message passing produces local velocity commands for variable-size teams.
-The policy is trained by imitation with separation, goal-progress, and
-smoothness losses, and an external safety filter corrects approaching robot
+The multi-scale policy uses mixed-expert imitation with separation,
+goal-progress, and velocity-consistency losses, and an external safety filter corrects approaching robot
 pairs during execution. Evaluation covers four map families and teams of
 5--40 robots, with 30 unseen seeds per multi-scale configuration. Local
 message passing improves goal-reaching success over an edge-free policy of
@@ -171,61 +171,61 @@ robot density.
 
 \section{Problem Formulation}
 
-Let $\mathcal{V}=\{1,\dots,N\}$ index the robots, with position
-$p_i\in\mathbb{R}^2$, velocity $v_i\in\mathbb{R}^2$, and goal
-$g_i\in\mathbb{R}^2$. A directed communication graph is rebuilt at every step
-from a radius $R_c$:
+Let $p_i,v_i,g_i\in\mathbb{R}^2$ denote the position, current velocity,
+and goal of robot $i\in\mathcal V=\{1,\ldots,N\}$. At each control step,
+the graph connects robot $j$ to receiver $i$ when
 \begin{equation}
-A_{ij}=
-\begin{cases}
-1, & i\neq j,\ \|p_i-p_j\|\le R_c,\\
-0, & \text{otherwise.}
-\end{cases}
+A_{ij}=\mathbf{1}\{0<\|p_i-p_j\|_2\le R_c\}.
 \end{equation}
-
-Node features are eight-dimensional: goal-relative position, normalized
-velocity, direction and distance to the nearest obstacle, and a bias term. The
-policy emits a two-dimensional local velocity $u_i$ with
-$\|u_i\|\le v_{\max}=1.4$~m/s, and positions evolve as
-$p_i^{t+1}=p_i^t+\Delta t\,u_i^t$ with $\Delta t=0.08$~s.
-
-We distinguish safety-distance violations from physical collisions. A
-\emph{safety violation} occurs when a pair is closer than $d_s=0.72$~m; a
-\emph{physical collision} occurs when the distance is less than the sum of
-the robot radii, $0.56$~m. An event is counted when a pair crosses from outside
-to inside the corresponding threshold; a sustained violation counts as one
-event. Task success requires the final mean goal error across all robots to
-fall below a fixed threshold. Strict collision-free success additionally
-requires that no physical collision occur during the episode.
-
-Relative position and velocity are normalized by map size and maximum speed,
-respectively. For a directed edge $(j,i)$, the five-dimensional feature is
+This excludes self-loops and pairs at exactly coincident positions, as in
+the implementation. Let $s=[W,H]=[16,12]$~m and $v_{\max}=1.4$~m/s.
+The eight-dimensional node feature is
 \begin{equation}
-e_{ij}^t=\left[\frac{p_i^t-p_j^t}{[W,H]},\ \frac{v_i^t-v_j^t}{v_{\max}},\
-\frac{-\big((v_i^t-v_j^t)\cdot\hat{r}_{ij}^t\big)}{v_{\max}}\right],
+x_i=\left[(g_i-p_i)\oslash s,\ v_i/v_{\max},\ n_i^{\rm obs},\
+\eta_i,\ 1\right],
 \end{equation}
-with $\hat{r}_{ij}^t=(p_i^t-p_j^t)/(\|p_i^t-p_j^t\|+\epsilon)$ and $[W,H]$ the
-map extents. The closing-speed component is positive when the robots
-approach each other, providing information about relative motion in
-addition to distance.
+where $\oslash$ denotes componentwise division, $n_i^{\rm obs}$ points
+from the nearest obstacle point toward the robot, and
+$\eta_i=\operatorname{clip}(d_i^{\rm obs}/4,0,1)$. For a zero obstacle
+displacement, this direction is zero. The code initializes obstacle
+distance to 9~m and direction to zero when no nearer obstacle is found.
+
+For edge $(j,i)$, define $r_{ij}=p_i-p_j$, $\Delta v_{ij}=v_i-v_j$,
+and $n_{ij}=r_{ij}/\max(\|r_{ij}\|_2,\epsilon)$, with
+$\epsilon=10^{-6}$. The edge tensor is
+\begin{equation}
+\begin{aligned}
+c_{ij}&=-\Delta v_{ij}^{\mathsf T}n_{ij},\\
+e_{ij}&=A_{ij}\left[r_{ij}\oslash s,\ \Delta v_{ij}/v_{\max},\
+c_{ij}/v_{\max}\right]\in\mathbb R^5.
+\end{aligned}
+\end{equation}
+Positive $c_{ij}$ indicates approach. Non-edge entries are zero; distance
+and communication indicators are not separate edge-feature components.
+
+The executed velocity $u_i$ satisfies $\|u_i\|_2\le v_{\max}$. The simulator
+updates $p_i^{t+1}=\Pi_\Omega(p_i^t+\Delta t\,u_i^t)$, where
+$\Delta t=0.08$~s and $\Pi_\Omega$ clips each coordinate to
+$\Omega=[-7.5,7.5]\times[-5.5,5.5]$~m.
+Safety-distance violations use $d_s=0.72$~m; physical collisions use
+$0.56$~m, the robot diameter. An event is counted on entry into the
+corresponding threshold, so a sustained violation counts once. Task success
+requires final mean goal error below $0.65$~m. Strict success additionally
+requires no physical collision during the episode.
 
 \section{Method}
 
 \subsection{System Overview}
-Fig.~\ref{fig:arch} organizes the closed loop from left to right: the robot
-scene and observed states, structured graph inputs, feature embedding, the
-shared GNN policy, and velocity output with optional safety filtering.
-Each robot supplies an eight-dimensional node feature; communication-radius
-edges carry five-dimensional relative-motion features. The shared encoder
-and three message-passing layers produce node representations for a shared
-two-dimensional velocity head. Executed actions update the scene and the
-graph is rebuilt at the next control step. Candidate actions illustrate
-motion choices; the learned policy directly regresses velocity rather than
-receiving a candidate-action list as input.
+Fig.~\ref{fig:arch} shows the inference loop for the edge-feature GNN.
+Robot observations form node features and a radius graph. A node encoder
+and a shared mean-edge encoder supply three message-passing layers, each
+performing aggregation and node update. The shared head predicts velocity;
+optional pairwise correction precedes norm clipping. Executed motion
+provides the next observation. Network inputs contain no candidate-action list.
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=\textwidth,trim=0 65bp 0 85bp,clip]{gnn_architecture_ai_fig1_draft_v2.png}
+\includegraphics[width=\textwidth]{gnn_architecture_aligned_v3.pdf}
 \caption{Multi-robot navigation pipeline: robot scene and states, structured
 graph inputs, feature embedding, shared GNN inference, and action output with
 optional safety filtering. Executed motion closes the observation--action loop.}
@@ -242,21 +242,30 @@ implementation. The independent MLP shares parameters across robots but uses
 only node features, without the adjacency matrix.
 
 \subsection{Message-Passing Policy}
-A linear layer first maps node features to a hidden representation. Each
-layer averages neighbor representations and updates the node from its own
-state concatenated with the transformed neighborhood message:
+The node encoder gives $h_i^{(0)}=\operatorname{ReLU}(W_xx_i+b_x)$.
+Let $D_i=\max(1,\sum_jA_{ij})$. Each layer first averages neighboring
+states and edge features:
 \begin{equation}
-m_i^{(l)}=\tfrac{1}{\max(1,d_i)}{\textstyle\sum_j}A_{ij}h_j^{(l)},\;
-h_i^{(l+1)}=\sigma(W_l[h_i^{(l)}\Vert\phi_l(m_i^{(l)})]).
+\bar h_i^{(l)}=\frac{\sum_jA_{ij}h_j^{(l)}}{D_i},\qquad
+\bar e_i=\frac{\sum_jA_{ij}e_{ij}}{D_i}.
 \end{equation}
-With edge features the message becomes
+The shared edge encoder is applied to the mean edge feature before the
+layer-specific message transform and node update:
 \begin{equation}
-m_i^{(l)}=\tfrac{1}{\max(1,d_i)}{\textstyle\sum_j}A_{ij}(\phi_l(h_j^{(l)})+\psi_l(e_{ij})),
+\begin{aligned}
+z_i&=W_e\bar e_i+b_e,\\
+m_i^{(l)}&=\operatorname{ReLU}\!\left(W_m^{(l)}(\bar h_i^{(l)}+z_i)+b_m^{(l)}\right),\\
+h_i^{(l+1)}&=\operatorname{ReLU}\!\left(W_u^{(l)}[h_i^{(l)}\Vert m_i^{(l)}]+b_u^{(l)}\right).
+\end{aligned}
 \end{equation}
-followed by
-$h_i^{(l+1)}=\mathrm{ReLU}(W_l[h_i^{(l)}\Vert m_i^{(l)}])$. We use three
-message-passing layers, 128 hidden units, and a shared action head, with the
-action bounded by $\hat{u}_i=v_{\max}\tanh(f_\theta(h_i))$.
+There are three layers of width 128. The edge encoder is shared across
+layers; message and update parameters differ between layers and are shared
+across robots. When no edge tensor is supplied, $z_i$ is omitted. Supplying
+a zero edge tensor retains $b_e$, including for isolated nodes.
+The action head is Linear--ReLU--Linear and predicts a dimensionless vector
+$a_i=f_{\rm head}(h_i^{(3)})$. The raw velocity is
+$u_i^{\rm raw}=v_{\max}a_i$, without a final activation. Optional pairwise
+correction and norm clipping produce the executed velocity.
 
 \subsection{Attention Variants}
 Two attention models are evaluated with the same inputs, outputs, data,
@@ -267,47 +276,63 @@ self-attention, residual connections, and feed-forward blocks. Both models
 use 128 hidden units, four heads, and a shared policy head.
 
 \subsection{Training Objective}
-Pure action imitation reproduces the expert's local behavior but does not
-guarantee a safe closed loop, so we train on a weighted sum of four terms:
+The training target is the normalized expert action $a_i^*=u_i^*/v_{\max}$.
+The trainer supports
 \begin{equation}
-\mathcal{L}=\lambda_a\mathcal{L}_{act}+\lambda_c\mathcal{L}_{col}
-+\lambda_p\mathcal{L}_{prog}+\lambda_s\mathcal{L}_{smooth},
+\mathcal L=\mathcal L_{\rm act}+\lambda_c\mathcal L_{\rm col}
++\lambda_p\mathcal L_{\rm prog}+\lambda_s\mathcal L_{\rm smooth}.
 \end{equation}
-where $\mathcal{L}_{act}=\frac{1}{|\mathcal{V}|}\sum_i
-\mathrm{Huber}(u_i,u_i^*)$ is the imitation term. Writing the one-step
-predicted pair distance as $d_{ij}'=\|p_i+\Delta t\,u_i-p_j-\Delta t\,u_j\|$,
-$\mathcal{L}_{col}=\frac{1}{N(N-1)}\sum_{i\neq j}[d_s-d_{ij}']_+^2$ penalizes
-predicted distances below the safety threshold. The remaining terms are
+For an unpadded scene, $\mathcal L_{\rm act}=N^{-1}\sum_{i,k}
+\operatorname{SmoothL1}(a_{ik}-a_{ik}^*)$, with transition parameter 1 and
+both velocity components summed. Set $p_i'=p_i+\Delta t\,v_{\max}a_i$,
+$d_{ij}'=\|p_i'-p_j'\|_2$, and $\gamma_i=(g_i-p_i)\oslash s$. Then
 \begin{equation}
 \begin{aligned}
-\mathcal{L}_{prog}&=\tfrac{1}{N}{\textstyle\sum_i}[\|g_i-p_i'\|-\|g_i-p_i\|]_+,\\
-\mathcal{L}_{smooth}&=\tfrac{1}{N}{\textstyle\sum_i}\|u_i^t-u_i^{t-1}\|_2^2,
+\mathcal L_{\rm col}&=\frac{\sum_{i\ne j}[d_s-d_{ij}']_+^2}{N(N-1)},\\
+\gamma_i'&=\gamma_i-(\Delta t\,v_{\max}a_i)\oslash s,\\
+\mathcal L_{\rm prog}&=\frac1N\sum_i[\|\gamma_i'\|_2-\|\gamma_i\|_2]_+,\\
+\mathcal L_{\rm smooth}&=\frac1N\sum_i\|a_i-v_i/v_{\max}\|_2^2.
 \end{aligned}
 \end{equation}
-with $[x]_+=\max(x,0)$. Padding nodes are masked by $q_i\in\{0,1\}$, so every
-node loss becomes $\sum_i q_i\ell_i/\max(1,\sum_i q_i)$ and a graph padded to
-40 nodes trains on exactly the real robots in it.
+Here $[x]_+=\max(x,0)$. The progress term uses normalized goal displacement.
+The smoothness term compares the prediction with the current velocity in
+the recorded observation, not a previous network prediction. Training uses
+raw predictions before safety filtering, speed clipping, or boundary clipping.
+For padded minibatches, node sums are masked by $q_{bi}$ and divided by
+$\max(1,\sum_{b,i}q_{bi})$; pair sums use $q_{bi}q_{bj}$ for $i\ne j$ and
+the corresponding valid-pair count. Pairs never cross scene boundaries.
 
-Multi-scale training samples datasets with 5--40 robots from all four map
-families and pads each graph to 40 nodes. The progress term penalizes motion
-away from the goal, while the smoothness term limits changes between
-successive actions.
+Saved records for all three multi-scale models specify
+$(\lambda_c,\lambda_p,\lambda_s)=(0.5,0.5,0.1)$, seed 7, and 30 epochs.
+Their mixed-expert datasets alternate ORCA-style, RVO-style, and
+safety-filtered ORCA-style labels, covering all four map families and
+5--40 robots with padding to 40 nodes. Auxiliary weights default to zero;
+the joint objective is therefore specific to the recorded multi-scale runs,
+not an assumption about every checkpoint in the comparisons.
 
 \subsection{Safety Filter}
-After the policy emits its action, the filter inspects every close pair and
-applies a symmetric correction before clipping. Let
-$n_{ij}=\delta_{ij}/(\|\delta_{ij}\|+\epsilon)$ with $\delta_{ij}=p_i-p_j$. If
-$\|\delta_{ij}\|<d_s+\tau$ and $(u_i-u_j)\cdot n_{ij}<0$, then
+Initialize $\tilde u_i=u_i^{\rm raw}$. The filter visits each pair $i<j$
+once, in index order, using the latest corrected velocities. Let
+$d_{ij}=\|r_{ij}\|_2$ and $b_{ij}=(\tilde u_i-\tilde u_j)^{\mathsf T}n_{ij}$.
+If $d_{ij}<d_s+\rho$ and $b_{ij}<0$, it applies
 \begin{equation}
 \begin{aligned}
-\tilde{u}_i&=u_i+\tfrac{\kappa_{ij}}{2}n_{ij},\quad
-\tilde{u}_j=u_j-\tfrac{\kappa_{ij}}{2}n_{ij},\\
-\kappa_{ij}&=-(u_i-u_j)\cdot n_{ij}+[d_s+\tau-\|\delta_{ij}\|]_+,
+\alpha_{ij}&=\tfrac12\{-b_{ij}+k_d[d_s+\rho-d_{ij}]_+\},\\
+\tilde u_i&\leftarrow\tilde u_i+\alpha_{ij}n_{ij},\qquad
+\tilde u_j\leftarrow\tilde u_j-\alpha_{ij}n_{ij}.
 \end{aligned}
 \end{equation}
-after which each $\tilde{u}_i$ is clipped to $v_{\max}$. The filter operates
-only during inference; Section~\ref{sec:results} evaluates its effect
-separately from that of the learned policy.
+The code uses a distance margin $\rho=0.35$~m and implicit gain
+$k_d=1$~s$^{-1}$. Although the argument is named \texttt{horizon}, it is
+added to a distance, not used as a prediction time. After the pair sweep,
+the executed velocity is
+\begin{equation}
+u_i=\tilde u_i\min\!\left(1,\frac{v_{\max}}{\max(\|\tilde u_i\|_2,\epsilon)}\right).
+\end{equation}
+With filtering disabled, the same clipping is applied to $u_i^{\rm raw}$.
+This is a sequential pairwise correction, not an ORCA solver or a formal
+collision-free guarantee. It is used only during execution and when
+generating safety-filtered expert labels, not inside the training loss.
 
 \section{Experimental Setup}
 
@@ -325,7 +350,8 @@ obstacles, layout, expert identifier, and step index.
 
 Reported metrics are goal success rate, strict no-physical-collision success
 rate, safety-violation events, physical collision events, minimum inter-robot
-separation, path length, final goal error, and mean per-step control time.
+separation, path length, final goal error, and mean per-step control time. The recorded timer covers observation and
+policy computation, but excludes safety filtering and environment updates.
 Means, standard deviations, and 95\% confidence intervals are computed over
 episodes, and violations at $0.72$~m and physical collisions at $0.56$~m are
 always reported in separate columns. Training used one 24~GB GPU with batch

@@ -50,7 +50,7 @@
 \maketitle
 
 \begin{abstract}
-多机器人协同导航需要在邻居关系变化和通信受限的条件下协调运动并避免碰撞。本文提出一种动态图神经策略，将机器人表示为节点，以局部通信关系建立边，通过相对位置、相对速度与接近速度构成五维边特征，并利用共享消息传递为不同规模的机器人群体生成局部速度指令。策略采用联合间距、目标进度和平滑损失的模仿学习方法训练，执行时由外部安全过滤器修正相互接近的机器人对的速度。实验覆盖四类地图和 5--40 个机器人，多规模测试中每种配置采用 30 个未见种子。结果表明，局部消息传递提高了相对同等容量无边策略的目标到达率；安全过滤减少了近距离冲突，并增大了最小机器人间距。在所测试的 5--10 个机器人场景中，过滤后的策略兼顾较高的无碰撞成功率与毫秒级控制时间，表明局部图交互与安全过滤适用于低至中等密度下的协同导航。
+多机器人协同导航需要在邻居关系变化和通信受限的条件下协调运动并避免碰撞。本文提出一种动态图神经策略，将机器人表示为节点，以局部通信关系建立边，通过相对位置、相对速度与接近速度构成五维边特征，并利用共享消息传递为不同规模的机器人群体生成局部速度指令。多规模策略采用混合专家模仿学习，并联合间距、目标进度与当前速度一致性损失训练，执行时由外部安全过滤器修正相互接近的机器人对的速度。实验覆盖四类地图和 5--40 个机器人，多规模测试中每种配置采用 30 个未见种子。结果表明，局部消息传递提高了相对同等容量无边策略的目标到达率；安全过滤减少了近距离冲突，并增大了最小机器人间距。在所测试的 5--10 个机器人场景中，过滤后的策略兼顾较高的无碰撞成功率与毫秒级控制时间，表明局部图交互与安全过滤适用于低至中等密度下的协同导航。
 \end{abstract}
 
 \noindent\textbf{关键词：}多机器人系统；图神经网络；协同导航；避碰；动态交互图
@@ -85,34 +85,37 @@ Diao 等利用 GNN 编码空间关系以规划路径\cite{diao2024gnn}。He 等�
 
 \section{问题建模}
 
-设 $\mathcal{V}=\{1,\dots,N\}$ 为机器人集合，机器人 $i$ 的位置、速度与目标分别为 $p_i\in\mathbb{R}^2$、$v_i\in\mathbb{R}^2$ 与 $g_i\in\mathbb{R}^2$。每个控制步根据通信半径 $R_c$ 重建有向通信图：
+设 $p_i,v_i,g_i\in\mathbb R^2$ 分别为机器人 $i\in\mathcal V=\{1,\ldots,N\}$ 的位置、当前速度与目标。每个控制步按以下条件连接发送节点 $j$ 与接收节点 $i$：
 \begin{equation}
-A_{ij}=
-\begin{cases}
-1, & i\neq j,\ \|p_i-p_j\|\le R_c,\\
-0, & \text{其他.}
-\end{cases}
+A_{ij}=\mathbf{1}\{0<\|p_i-p_j\|_2\le R_c\}.
 \end{equation}
-
-节点特征为 8 维：目标相对位置、归一化速度、最近障碍物方向、最近障碍物距离以及偏置项。策略输出二维局部速度 $u_i$，满足 $\|u_i\|\le v_{\max}=1.4$~m/s；位置按 $p_i^{t+1}=p_i^t+\Delta t\,u_i^t$ 更新，其中 $\Delta t=0.08$~s。
-
-本文区分安全距离违规与物理碰撞。当机器人对的距离小于 $d_s=0.72$~m 时，判定为\emph{安全距离违规}；当距离小于两机器人半径之和 $0.56$~m 时，判定为\emph{物理碰撞}。事件在距离由阈值外进入阈值内时计数，持续违规只计一次。任务成功要求所有机器人的最终平均目标误差低于固定阈值；严格无碰撞成功还要求整个回合内不发生物理碰撞。
-
-相对位置和相对速度分别按地图尺寸和最大速度归一化。对有向边 $(j,i)$，五维特征定义为
+该条件与实现一致，排除自环及位置完全重合的机器人对。令 $s=[W,H]=[16,12]$~m，$v_{\max}=1.4$~m/s，八维节点特征为
 \begin{equation}
-e_{ij}^t=\left[\frac{p_i^t-p_j^t}{[W,H]},\ \frac{v_i^t-v_j^t}{v_{\max}},\
-\frac{-\big((v_i^t-v_j^t)\cdot\hat{r}_{ij}^t\big)}{v_{\max}}\right],
+x_i=\left[(g_i-p_i)\oslash s,\ v_i/v_{\max},\ n_i^{\rm obs},\
+\eta_i,\ 1\right],
 \end{equation}
-其中 $\hat{r}_{ij}^t=(p_i^t-p_j^t)/(\|p_i^t-p_j^t\|+\epsilon)$，$[W,H]$ 为地图尺寸。接近速度在两机器人相向接近时取正值，为距离信息补充相对运动趋势。
+其中 $\oslash$ 表示逐分量相除，$n_i^{\rm obs}$ 为最近障碍物点指向机器人的单位方向，$\eta_i=\operatorname{clip}(d_i^{\rm obs}/4,0,1)$。障碍物相对位移为零时方向取零；代码将障碍距离初始化为 9~m，未找到更近障碍物时方向保持为零。
+
+对于边 $(j,i)$，定义 $r_{ij}=p_i-p_j$、$\Delta v_{ij}=v_i-v_j$ 及 $n_{ij}=r_{ij}/\max(\|r_{ij}\|_2,\epsilon)$，其中 $\epsilon=10^{-6}$。边特征张量为
+\begin{equation}
+\begin{aligned}
+c_{ij}&=-\Delta v_{ij}^{\mathsf T}n_{ij},\\
+e_{ij}&=A_{ij}\left[r_{ij}\oslash s,\ \Delta v_{ij}/v_{\max},\
+c_{ij}/v_{\max}\right]\in\mathbb R^5.
+\end{aligned}
+\end{equation}
+$c_{ij}>0$ 表示两机器人正在接近。非边位置的特征为零，距离和通信指示量不作为额外的边特征分量。
+
+执行速度 $u_i$ 满足 $\|u_i\|_2\le v_{\max}$。仿真器按 $p_i^{t+1}=\Pi_\Omega(p_i^t+\Delta t\,u_i^t)$ 更新位置，其中 $\Delta t=0.08$~s，$\Pi_\Omega$ 将坐标裁剪至 $\Omega=[-7.5,7.5]\times[-5.5,5.5]$~m。安全距离违规阈值为 $d_s=0.72$~m，物理碰撞阈值为机器人直径 $0.56$~m。事件在距离进入相应阈值内时计数，持续违规仅计一次。任务成功要求最终平均目标误差小于 $0.65$~m；严格成功还要求整个回合内无物理碰撞。
 
 \section{方法}
 
 \subsection{总体架构}
-图~\ref{fig:arch} 从左至右展示机器人场景与状态观测、结构化图输入、特征嵌入、共享 GNN 策略以及速度输出与可选安全过滤。每个机器人提供八维节点特征，通信半径内的边携带五维相对运动特征；共享编码器和三层消息传递形成节点表示，再由共享动作头输出二维速度。动作执行后更新场景，并在下一控制步重建图。图中候选动作示意运动选择，学习策略直接回归速度，并不以候选动作列表作为输入。
+图~\ref{fig:arch} 展示带边特征 GNN 的推理闭环。机器人观测构成节点特征与半径图；节点编码器及共享平均边特征编码器为三层消息传递提供输入，每层均执行聚合与节点更新。共享动作头预测速度，可选两两修正在范数裁剪前执行，运动结果形成下一时刻观测。网络输入不包含候选动作列表。
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=\textwidth,trim=0 65bp 0 85bp,clip]{gnn_architecture_ai_fig1_draft_v2.png}
+\includegraphics[width=\textwidth]{gnn_architecture_aligned_v3.pdf}
 \caption{多机器人导航流程：机器人场景与状态、结构化图输入、特征嵌入、共享 GNN 推理，以及动作输出与可选安全过滤。执行后的运动反馈形成观测--动作闭环。}
 \label{fig:arch}
 \end{figure*}
@@ -121,54 +124,63 @@ e_{ij}^t=\left[\frac{p_i^t-p_j^t}{[W,H]},\ \frac{v_i^t-v_j^t}{v_{\max}},\
 基线包括 A* 栅格跟踪、ORCA-style 局部排斥控制器，以及在有限方向与速度格点上采样的 RVO-style 控制器。RVO-style 根据预测邻居间距、障碍物占用和目标进度对候选速度评分。该控制器为本实验自行实现，并非经过形式验证的 RVO 参考实现。独立 MLP 在机器人间共享参数，但仅使用节点特征，不接收邻接矩阵。
 
 \subsection{消息传递策略}
-首先用线性层将节点特征映射为隐表示。每一层对邻居表示取平均，并将自身状态与变换后的邻域消息拼接后更新节点：
+节点编码为 $h_i^{(0)}=\operatorname{ReLU}(W_xx_i+b_x)$。令 $D_i=\max(1,\sum_jA_{ij})$，每层首先计算邻居状态与边特征的均值：
 \begin{equation}
-m_i^{(l)}=\tfrac{1}{\max(1,d_i)}{\textstyle\sum_j}A_{ij}h_j^{(l)},\;
-h_i^{(l+1)}=\sigma(W_l[h_i^{(l)}\Vert\phi_l(m_i^{(l)})]).
+\bar h_i^{(l)}=\frac{\sum_jA_{ij}h_j^{(l)}}{D_i},\qquad
+\bar e_i=\frac{\sum_jA_{ij}e_{ij}}{D_i}.
 \end{equation}
-加入边特征后，消息形式为
+共享边编码器作用于平均边特征，随后执行各层的消息变换与节点更新：
 \begin{equation}
-m_i^{(l)}=\tfrac{1}{\max(1,d_i)}{\textstyle\sum_j}A_{ij}(\phi_l(h_j^{(l)})+\psi_l(e_{ij})),
+\begin{aligned}
+z_i&=W_e\bar e_i+b_e,\\
+m_i^{(l)}&=\operatorname{ReLU}\!\left(W_m^{(l)}(\bar h_i^{(l)}+z_i)+b_m^{(l)}\right),\\
+h_i^{(l+1)}&=\operatorname{ReLU}\!\left(W_u^{(l)}[h_i^{(l)}\Vert m_i^{(l)}]+b_u^{(l)}\right).
+\end{aligned}
 \end{equation}
-随后
-$h_i^{(l+1)}=\mathrm{ReLU}(W_l[h_i^{(l)}\Vert m_i^{(l)}])$。本文使用 3 层消息传递、128 个隐藏单元与共享动作头，动作由 $\hat{u}_i=v_{\max}\tanh(f_\theta(h_i))$ 约束在可执行范围内。
+模型包含三层消息传递，每层宽度为 128。边编码器在各层间共享；消息变换和更新参数随层变化，并在机器人间共享。未传入边张量时省略 $z_i$；传入全零边张量时仍保留 $b_e$，孤立节点亦如此。动作头由 Linear--ReLU--Linear 构成，输出无量纲向量 $a_i=f_{\rm head}(h_i^{(3)})$。原始速度为 $u_i^{\rm raw}=v_{\max}a_i$，输出端无最终激活函数，再经可选的两两修正和范数裁剪得到执行速度。
 
 \subsection{注意力变体}
 两种注意力模型采用相同的输入、输出、数据与测试场景。邻域注意力 GNN 用查询、键、值上的多头注意力替换均值聚合，并由局部邻接矩阵掩蔽。Graph Transformer 使用动态邻接矩阵掩蔽的多头自注意力、残差连接与前馈块。两者均使用 128 个隐藏单元、4 个注意力头和共享策略头。
 
 \subsection{训练目标}
-单纯的动作模仿能够复现专家的局部行为，却无法保证闭环安全，因此本文以四项损失加权和进行训练：
+训练标签为归一化专家动作 $a_i^*=u_i^*/v_{\max}$。训练器支持以下目标：
 \begin{equation}
-\mathcal{L}=\lambda_a\mathcal{L}_{act}+\lambda_c\mathcal{L}_{col}
-+\lambda_p\mathcal{L}_{prog}+\lambda_s\mathcal{L}_{smooth},
+\mathcal L=\mathcal L_{\rm act}+\lambda_c\mathcal L_{\rm col}
++\lambda_p\mathcal L_{\rm prog}+\lambda_s\mathcal L_{\rm smooth}.
 \end{equation}
-其中 $\mathcal{L}_{act}=\frac{1}{|\mathcal{V}|}\sum_i\mathrm{Huber}(u_i,u_i^*)$ 为模仿项。记一步预测后的机器人对距离为 $d_{ij}'=\|p_i+\Delta t\,u_i-p_j-\Delta t\,u_j\|$，则 $\mathcal{L}_{col}=\frac{1}{N(N-1)}\sum_{i\neq j}[d_s-d_{ij}']_+^2$ 惩罚低于安全阈值的预测间距。其余两项为
+对于未填充场景，$\mathcal L_{\rm act}=N^{-1}\sum_{i,k}\operatorname{SmoothL1}(a_{ik}-a_{ik}^*)$，转折参数为 1，两个速度分量的损失求和。令 $p_i'=p_i+\Delta t\,v_{\max}a_i$、$d_{ij}'=\|p_i'-p_j'\|_2$，并记 $\gamma_i=(g_i-p_i)\oslash s$，则
 \begin{equation}
 \begin{aligned}
-\mathcal{L}_{prog}&=\tfrac{1}{N}{\textstyle\sum_i}[\|g_i-p_i'\|-\|g_i-p_i\|]_+,\\
-\mathcal{L}_{smooth}&=\tfrac{1}{N}{\textstyle\sum_i}\|u_i^t-u_i^{t-1}\|_2^2,
+\mathcal L_{\rm col}&=\frac{\sum_{i\ne j}[d_s-d_{ij}']_+^2}{N(N-1)},\\
+\gamma_i'&=\gamma_i-(\Delta t\,v_{\max}a_i)\oslash s,\\
+\mathcal L_{\rm prog}&=\frac1N\sum_i[\|\gamma_i'\|_2-\|\gamma_i\|_2]_+,\\
+\mathcal L_{\rm smooth}&=\frac1N\sum_i\|a_i-v_i/v_{\max}\|_2^2.
 \end{aligned}
 \end{equation}
-其中 $[x]_+=\max(x,0)$。填充节点由 $q_i\in\{0,1\}$ 掩蔽，故每个节点损失写作 $\sum_i q_i\ell_i/\max(1,\sum_i q_i)$，补齐到 40 个节点的图仅在真实的机器人上训练。
+其中 $[x]_+=\max(x,0)$。进度项使用归一化目标位移；平滑项比较预测动作与记录观测中的当前归一化速度，并非前一时刻的网络预测。训练使用未经安全过滤、速度裁剪和边界裁剪的原始预测。批训练中，节点项按 $q_{bi}$ 掩蔽，并除以 $\max(1,\sum_{b,i}q_{bi})$；机器人对的求和使用 $i\ne j$ 时的 $q_{bi}q_{bj}$，再除以相应有效机器人对数，不跨场景配对。
 
-多规模训练从四类地图中采样 5--40 个机器人的数据集，并将每张图补齐到 40 个节点。目标进度项惩罚偏离目标的运动，平滑项限制相邻时间步的动作变化。
+三个多规模模型的训练记录均采用 $(\lambda_c,\lambda_p,\lambda_s)=(0.5,0.5,0.1)$、种子 7 和 30 轮训练。混合专家数据按回合交替使用 ORCA-style、RVO-style 和经过安全过滤的 ORCA-style 标签，覆盖四类地图及 5--40 个机器人，并补齐到 40 个节点。辅助权重默认值为零，因此上述联合目标仅据记录用于多规模实验，不代表所有对比检查点均采用该配置。
 
 \subsection{安全过滤器}
-策略输出动作后，过滤器检查每一对近距离机器人，在速度裁剪之前施加对称修正。令 $\delta_{ij}=p_i-p_j$，$n_{ij}=\delta_{ij}/(\|\delta_{ij}\|+\epsilon)$。若 $\|\delta_{ij}\|<d_s+\tau$ 且 $(u_i-u_j)\cdot n_{ij}<0$，则
+初始化 $\tilde u_i=u_i^{\rm raw}$。过滤器按索引顺序对每个 $i<j$ 的机器人对检查一次，并使用当前已修正的速度。令 $d_{ij}=\|r_{ij}\|_2$，$b_{ij}=(\tilde u_i-\tilde u_j)^{\mathsf T}n_{ij}$。当 $d_{ij}<d_s+\rho$ 且 $b_{ij}<0$ 时，执行
 \begin{equation}
 \begin{aligned}
-\tilde{u}_i&=u_i+\tfrac{\kappa_{ij}}{2}n_{ij},\quad
-\tilde{u}_j=u_j-\tfrac{\kappa_{ij}}{2}n_{ij},\\
-\kappa_{ij}&=-(u_i-u_j)\cdot n_{ij}+[d_s+\tau-\|\delta_{ij}\|]_+,
+\alpha_{ij}&=\tfrac12\{-b_{ij}+k_d[d_s+\rho-d_{ij}]_+\},\\
+\tilde u_i&\leftarrow\tilde u_i+\alpha_{ij}n_{ij},\qquad
+\tilde u_j\leftarrow\tilde u_j-\alpha_{ij}n_{ij}.
 \end{aligned}
 \end{equation}
-之后将每个 $\tilde{u}_i$ 裁剪至 $v_{\max}$。过滤器仅在推理阶段启用，其效果在第~\ref{sec:results}~节中单独评估。
+代码采用距离余量 $\rho=0.35$~m，隐含比例系数为 $k_d=1$~s$^{-1}$。参数虽命名为 \texttt{horizon}，实际与距离相加，并非预测时间。遍历完成后按范数限速：
+\begin{equation}
+u_i=\tilde u_i\min\!\left(1,\frac{v_{\max}}{\max(\|\tilde u_i\|_2,\epsilon)}\right).
+\end{equation}
+关闭过滤时，对 $u_i^{\rm raw}$ 直接执行相同裁剪。该方法为顺序两两速度修正，并非 ORCA 求解器，也不提供形式化无碰撞保证。过滤器仅用于执行阶段及安全专家标签生成，不进入训练损失。
 
 \section{实验设计}
 
 实验覆盖四类地图——\textit{crossing}、\textit{open}、\textit{random} 与 \textit{narrow}——以及 5、10、20、30、40 个机器人。开发数据使用固定种子，每类 20 个回合、每回合至多 160 个时间步。主实验覆盖 $4\times3\times5\times10=600$ 个回合，包含三种机器人规模、五种方法与十个固定测试种子；扩展学习模型对比包含四种学习策略的 480 个回合；多规模测试包含 30 个未见种子（100--129）下的 1800 个安全过滤回合与 1800 个未过滤回合。所有方法共享初始状态、目标、障碍物、动作限制与终止规则。数据以压缩 NPZ 形式保存，包含特征、邻接、动作、位置、奖励、障碍物、地图、专家标识与步索引。
 
-报告指标包括目标到达率、严格无物理碰撞成功率、安全距离违规事件、物理碰撞事件、最小机器人间距、路径长度、最终目标误差与每控制步平均计算时间。均值、标准差与 95\% 置信区间均由回合级结果计算；0.72~m 的违规与 0.56~m 的物理碰撞始终分列报告。训练使用单张 24~GB GPU，批大小为 128。
+报告指标包括目标到达率、严格无物理碰撞成功率、安全距离违规事件、物理碰撞事件、最小机器人间距、路径长度、最终目标误差与每控制步平均计算时间。计时范围包括观测构建与策略计算，不含安全过滤和环境更新。均值、标准差与 95\% 置信区间均由回合级结果计算；0.72~m 的违规与 0.56~m 的物理碰撞始终分列报告。训练使用单张 24~GB GPU，批大小为 128。
 
 \section{实验结果}
 \label{sec:results}

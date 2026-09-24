@@ -49,6 +49,14 @@ Figures are not copied here; `\graphicspath{{../../figures/generated/}}` reads
 them straight from the repository's generated-figure directory, so regenerating
 a figure and rebuilding is enough to update both papers.
 
+Figure 1 now uses `gnn_architecture_aligned_v3.pdf`. Its editable Draw.io,
+SVG and PNG versions are generated with
+`conda run -n pyg python scripts/build_aligned_architecture.py` from the
+repository root. The figure prompt is in `figures/prompts/figure1_aligned_v3.md`;
+formula and implementation checks are recorded in
+`docs/formula_alignment_2026-09-24.md`. Commit `8c4277a` preserves the version
+before these corrections, including the previous Figure 1.
+
 ## Relationship to the other manuscripts
 
 `../manuscript/` holds an earlier Chinese draft (`paper_overall.tex`,
